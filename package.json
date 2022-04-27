@@ -1,0 +1,27 @@
+{
+  "name": "drawly-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon ./main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hayhaydz/drawly-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hayhaydz/drawly-backend/issues"
+  },
+  "homepage": "https://github.com/hayhaydz/drawly-backend#readme",
+  "dependencies": {
+    "express": "^4.18.0",
+    "socket.io": "^4.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  }
+}
