@@ -1,43 +1,38 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+const app = require('express')();
+const server = require('http').createServer(app);
+const io = require('socket.io')(server);
+const cors = require('cors');
+const { addUser, getUser, deleteUser, getUsers } = require('./utils/users');
 
-const app = express();
-const server = http.createServer(app);
-const socketOptions = {
-    cors: {
-        origin: "*"
-    }
-};
-const io = new Server(server, socketOptions);
+app.use(cors());
 
-io.on('connection', (socket) => {
-    console.log('a user has joined!');
+io.of('/socket').on('connection', (socket) => {
+    socket.on('login', ({ name, room }, callback) => {
+        const { user, error } = addUser(socket.id, name, room);
+        if(error) return callback(error);
+        socket.join(user.room);
+        socket.in(room).emit('notification', { title: 'Someone is here', description: `${user.name} just entered the room` });
+        io.in(room).emit('users', getUsers(room));
+        callback();
+    });
 
-    socket.on('chat', (message) => {
-        io.emit('chat', message);
+    socket.on('sendMessage', message => {
+        const user = getUser(socket.id);
+        io.in(user.room).emit('message', { user: user.name, text: message });
     });
 
     socket.on('disconnect', () => {
-        console.log('user disconnected');
+        console.log('User has disconnected');
+        const user = deleteUser(socket.id);
+        if(user) {
+            io.in(user.room).emit('notification', { title: 'Someone just left', description: `${user.name} just left the room` });
+            io.in(user.room).emit('users', getUsers(user.room));
+        }
     });
 });
 
 app.get("/", (req, res) => {
     res.send("Websocket Server");
-});
-
-app.use((req, res, next) => {
-    const error = new Error(`Cannot find ${req.originalUrl} on this server!`);
-    error.status = 404;
-    next(error);
-});
-
-app.use((error, req, res, next) => {
-    res.status(error.status || 500).send({
-        status: 'fail',
-        message: error.message || 'Internal Server Error'
-    });
 });
 
 const PORT = process.env.PORT || 3080;
