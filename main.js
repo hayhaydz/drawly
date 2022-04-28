@@ -1,12 +1,18 @@
 const app = require('express')();
 const server = require('http').createServer(app);
-const io = require('socket.io')(server);
+const io = require('socket.io')(server, {
+    cors: {
+        origin: "*"
+    }
+});
 const cors = require('cors');
 const { addUser, getUser, deleteUser, getUsers } = require('./utils/users');
 
 app.use(cors());
 
-io.of('/socket').on('connection', (socket) => {
+io.on('connection', (socket) => {
+    console.log(`Client with ID of ${socket.id} connected!`);
+    
     socket.on('login', ({ name, room }, callback) => {
         const { user, error } = addUser(socket.id, name, room);
         if(error) return callback(error);
