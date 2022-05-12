@@ -1,3 +1,6 @@
+const { createAvatar } = require('@dicebear/avatars');
+const style = require('@dicebear/croodles-neutral');
+
 const users = [];
 
 const addUser = (id, name, room) => {
@@ -7,8 +10,12 @@ const addUser = (id, name, room) => {
     if(!name && !room) return { error: "Username and room are required" };
     if(!name) return { error: "Username is required" };
     if(!room) return { error: "Room is required" };
+    let avatar = createAvatar(style, {
+        dataUri: true,
+        size: 128
+    });
 
-    const user = { id, name, room };
+    const user = { id, name, room, avatar };
     users.push(user);
     return { user };
 }
