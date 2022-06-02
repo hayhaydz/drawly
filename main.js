@@ -27,6 +27,16 @@ io.on('connection', (socket) => {
         io.in(user.room).emit('message', { user: user.name, text: message });
     });
 
+    socket.on('startDrawing', data => {
+        const user = getUser(socket.id);
+        socket.broadcast.to(user.room).emit('startDraw', { ...data });
+    });
+
+    socket.on('endDrawing', data => {
+        const user = getUser(socket.id);
+        socket.broadcast.to(user.room).emit('endDraw', { ...data });
+    });
+
     socket.on('disconnect', () => {
         console.log('User has disconnected');
         const user = deleteUser(socket.id);
