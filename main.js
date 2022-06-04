@@ -7,6 +7,7 @@ const io = require('socket.io')(server, {
 });
 const cors = require('cors');
 const redis = require('redis');
+const { nanoid } = require('nanoid');
 
 const { addUser, getUser, deleteUser, getUsers } = require('./utils/users');
 const { REDIS_URL } = require('./config.js');
@@ -28,18 +29,26 @@ io.on('connection', async (socket) => {
     
     socket.on('login', async ({ name, room }, callback) => {
         console.log(`Client with ID of ${socket.id} has logged in`);
+        if(room !== '') {
+            let users = getUsers(room);
+            if(users.length < 1) return callback({ name, room }, "Invalid room ID");
+        } else {
+            room = nanoid();
+        }
         const { user, error } = addUser(socket.id, name, room);
-        if(error) return callback(error);
+        if(error) return callback({ name, room }, error);
+        await client.lPush(JSON.stringify({"type": "user", "room": room}), JSON.stringify({ id: user.id, name }), { EX: 60 * 60 * 24 });
         socket.join(user.room);
         socket.in(room).emit('notification', { title: 'Someone is here', description: `${user.name} just entered the room` });
         io.in(room).emit('users', getUsers(room));
 
-        callback();
+        callback({ name, room }, false);
     });
 
     socket.on('checkStrokeSave', async (data) => {
         strokes = await client.lRange(JSON.stringify({"type": "stroke", "room": data.room}), 0, -1);
         if(strokes !== null && strokes.length > 1) {
+            strokes.reverse();
             for(let i = 0; i < strokes.length; i++) {
                 let stroke = JSON.parse(strokes[i]);
                 socket.emit('startDraw', stroke.start);
@@ -67,6 +76,18 @@ io.on('connection', async (socket) => {
         }
     });
 
+    socket.on('logout', async () => {
+        const user = deleteUser(socket.id);
+        if(user) {
+            io.in(user.room).emit('notification', { title: 'Someone just left', description: `${user.name} just left the room` });
+            io.in(user.room).emit('users', getUsers(user.room));
+            if(getUsers(user.room).length < 1) {
+                await client.del(JSON.stringify({"type": "stroke", "room": user.room}));
+                await client.del(JSON.stringify({"type": "user", "room": user.room}));
+            }
+        }
+    });
+
     socket.on('disconnect', async () => {
         console.log(`Client with ID of ${socket.id} has disconnected`);
         const user = deleteUser(socket.id);
@@ -75,6 +96,7 @@ io.on('connection', async (socket) => {
             io.in(user.room).emit('users', getUsers(user.room));
             if(getUsers(user.room).length < 1) {
                 await client.del(JSON.stringify({"type": "stroke", "room": user.room}));
+                await client.del(JSON.stringify({"type": "user", "room": user.room}));
             }
         }
     });
